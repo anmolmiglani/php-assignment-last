@@ -1,0 +1,116 @@
+INSTALL
+=======
+
+This is a short document to explain how to get the basic LAMPAS system
+up and running.
+
+Please keep in mind that LAMPAS is still in very early development.
+
+Dependencies
+------------
+
+This document assumes you have Apache2 and mod_perl working. Please refer to:
+
+	http://sourceforge.net/docman/display_doc.php?docid=31293&group_id=149566
+
+Step 1
+------
+
+Untar the lampas-<version>.tar.gz in any directory
+
+Step 2
+------
+
+Become root
+
+Step 3
+------
+
+Change to the directory where you untarred the LAMPAS tar ball.
+
+	# cd <dir>/lampas-<version>/
+	
+Step 4
+------
+
+Run the make process
+
+	# make install
+	
+The base files will be installed in /opt/lampas
+
+Your LAMPAS files are now installed. The rest of the configuration 
+explains how existing system files need to be modified to get your local
+web browser to see the LAMPAS sample site.
+
+NOTE: The directory '/opt/lampas/mods/LAMPAS/' should for now already 
+      contain the required modules pre-compiled.	
+
+Step 5
+------
+
+Add the sample domain to the /etc/hosts file. Add the following line to 
+/etc/hosts:
+
+	<your IP addr>	www.lampas.tld
+	
+Step 6
+------
+
+You will now need to consult your distribution documentation to figure 
+out how your Apache installation will import oter configuration files - 
+in our case our LAMPAS VHOSTS files, living in:
+
+	/opt/lampas/conf/vhosts/
+	
+If you did a custom build using advice from my documentation, you must open the
+httpd.conf file and search for the line:
+
+	# Virtual hosts
+	#Include conf/extra/httpd-vhosts.conf
+
+And ADD the following line directly after the second comment line:
+
+	Include /opt/lampas/conf/vhosts/*.conf
+	
+NOTE: you need to enable name based virtual hosts. On Mandriva, I needed
+to add the following line to /etc/httpd/conf/vhosts/Vhosts.conf:
+
+	# LAMPAS Configuration for name based virtual hosts
+	NameVirtualHost *:80
+
+Step 7
+------
+
+Next you need to set-up your DB. Import the file:
+
+	src/lampas_20060726_2315.sql
+
+The above file contains all the required SQL to create the `lampas` DB.
+
+I tested on MySQL 4.1.
+
+You may need to edit the file:
+
+	conf/vhosts/lampas.conf
+
+Please note that the MySQL DB config matches your set-up.
+
+Step 8
+------
+
+Restart Apache.
+
+Step 9
+------
+
+If you are using other computers on the LAN to maybe test to the sample
+application, add the hosts entry (see step 5) to the relevant hosts file
+of that Operating System.
+
+Step 10
+------
+
+Test. point your web browser to http://www.lampas.tld
+
+

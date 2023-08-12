@@ -1,0 +1,65 @@
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+
+    margin: 0px;
+}
+
+body {
+    background-color: #f23000;
+background-image: url("https://www.transparenttextures.com/patterns/assault.png");
+}
+/* signin style*/
+#signin-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+#signin-body form {
+    /* border: 1px solid black; */
+    padding: 60px;
+    min-width: 50%;
+    position: relative;
+    background-color: pink;
+    box-shadow: 0px 0px 4px black;
+}
+/* form style*/
+.form-label {
+    position: absolute;
+    min-height: 20px;
+    background-color: red;
+    color: white;
+    padding: 10px;
+    z-index: 1;
+    top: -20px;
+    left: 20px;
+    text-transform: uppercase;
+}
+
+#signin-body form input[type=text] {
+    padding: 10px 5px;
+    margin-bottom: 10px;
+    width: 100%;
+}
+
+#signin-body form input[type=submit] {
+    background-color: transparent;
+    padding: 10px 50px;
+    border: 1px solid red;
+    color: red;
+    font-size: 15px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    font-weight: bold;
+    float: right;
+}
+
+#signin-body form input[type=submit]:hover {
+    background-color: red;
+    color: white;
+}

@@ -1,0 +1,994 @@
+Intro
+-----
+
+This document explains the database tables used in the LAMPAS system. 
+
+Table: `delpoyment_systems`
+-----
+
+	Function:
+
+		Binds a deployment definition to a system and (optionally) a domain.
+
+		A domain can only be included in LAMP based deployments.
+
+		TO DO: MySQL validation (trigger perhaps?) to check domain condition on deployment type.
+
+	Definition:
+
+		+--------+---------------------+------+-----+---------+-------+
+		| Field  | Type                | Null | Key | Default | Extra |
+		+--------+---------------------+------+-----+---------+-------+
+		| did    | int(10) unsigned    |      | PRI | 1       |       |
+		| sid    | int(10) unsigned    |      | PRI | 1       |       |
+		| status | tinyint(3) unsigned |      |     | 0       |       |
+		| notes  | text                | YES  |     | NULL    |       |
+		| domid  | int(10) unsigned    | YES  |     | NULL    |       |
+		+--------+---------------------+------+-----+---------+-------+
+
+	Specific Notes:
+
+		Field		Notes
+		-----		-----
+		did		The deployment ID
+		sid		A link to a system ID (table: `system_definitions`)
+		status		1=active and 0=disabled. The deployment verification script (running from time to time),
+				will periodically check if there are deployments on a system that has a status of '0'.
+				These deployments will then temporarely be removed from the system.
+		notes		A free from text field to keep notes
+		domid		An optional domain ID for LAMP based deployments. This will deploy a vhost config for
+				a particular domain on a host.
+
+	General Notes:
+
+		A system administrator can manually run the verification script to redeploy did's with a status now '1'
+		and not yet on the system - this is essentially a new deployment.
+
+Table: `deployment_definitions`
+-----
+
+	Function:
+
+		This table links a particular package (pid, branch and version) to an actual package deployable to a system.
+
+	Definition:
+
+		+-------------+---------------------+------+-----+---------------------+----------------+
+		| Field       | Type                | Null | Key | Default             | Extra          |
+		+-------------+---------------------+------+-----+---------------------+----------------+
+		| did         | int(10) unsigned    |      | PRI | NULL                | auto_increment |
+		| pid         | int(10) unsigned    |      |     | 1                   |                |
+		| branch      | int(10) unsigned    |      |     | 1                   |                |
+		| version     | int(10) unsigned    |      |     | 1                   |                |
+		| live_date   | datetime            |      |     | 0000-00-00 00:00:00 |                |
+		| auth_status | tinyint(3) unsigned |      |     | 0                   |                |
+		| notes       | text                | YES  |     | NULL                |                |
+		| log         | text                | YES  |     | NULL                |                |
+		| uri         | varchar(255)        | YES  |     | NULL                |                |
+		+-------------+---------------------+------+-----+---------------------+----------------+
+
+	Specific Notes:
+
+		Field		Notes
+		-----		-----
+		did		The deployment ID
+		pid		The package ID
+		branch		The package branch
+		version		The packag version number
+		live_date	Do not deploy the package BEFORE this date (can be usefull for un-attended site updates after hours)
+		auth_status	Used for integration with a sign off process. If all required parties have signed off the change
+				request, this indicator can be set to '1'. The deployment manager will only deploy packages AFTER
+				the `live_date` with an `auth_status` of '1'.
+		notes		Free form text notes
+		log		Log entries regarding this deployment. Can also be used in conjunction with a sign off management
+				system to add log entries.
+		uri		Only used in LAMP deployments, indicating the relative URI (Location directive) for this package
+
+	General Notes:
+
+		None
+
+Table: `domain_definitions`
+-----
+
+	Function:
+
+		This table defines new domains. LAMP applications can be deployed to a domain.
+
+	Definition:
+
+		+-------------+---------------------+------+-----+---------------------+----------------+
+		| Field       | Type                | Null | Key | Default             | Extra          |
+		+-------------+---------------------+------+-----+---------------------+----------------+
+		| domid       | int(10) unsigned    |      | PRI | NULL                | auto_increment |
+		| domain_name | varchar(64)         |      | UNI |                     |                |
+		| admin_gid   | int(10) unsigned    |      |     | 1                   |                |
+		| created_on  | datetime            |      |     | 0000-00-00 00:00:00 |                |
+		| status      | tinyint(3) unsigned |      |     | 0                   |                |
+		| notes       | text                | YES  |     | NULL                |                |
+		| key         | varchar(32)         |      |     |                     |                |
+		+-------------+---------------------+------+-----+---------------------+----------------+
+
+	Specific Notes:
+
+		Field		Notes
+		-----		-----
+		domid		The unique ID for this domain
+		domain_name	The actual name (for example: example.com)
+		admin_gid	The Domain admin group. People inside this group (defined in table: `user_group_definitions`)
+				can administrate this domain.
+		created_on	The entry create date and time
+		status		1=active and 0=disabled. If a domain changes to status 0, all application deployed (even if
+				marked active) will be removed from all systems (where this domain is valid).
+		notes		Free form text notes
+		key		This is a key that can be used for encryption - for example with cookies
+
+	General Notes:
+
+		The default LAMPAS system will deploy with an imaginary domain called "lampas.tld".
+
+Table: `domain_deployments`
+-----
+
+	Function:
+
+		This will deploy a domian to a system. 
+
+	Definition:
+
+		+--------------------+---------------------+------+-----+---------+-------+
+		| Field              | Type                | Null | Key | Default | Extra |
+		+--------------------+---------------------+------+-----+---------+-------+
+		| sid                | int(10) unsigned    |      | PRI | 1       |       |
+		| domid              | int(10) unsigned    |      | PRI | 1       |       |
+		| deploy_bind_config | tinyint(3) unsigned |      |     | 0       |       |
+		| notes              | text                | YES  |     | NULL    |       |
+		+--------------------+---------------------+------+-----+---------+-------+
+
+	Specific Notes:
+
+		Field		Notes
+		-----		-----
+		sid		A link to a system ID
+		domid		A link to a domain ID
+		deploy_bind_config	If this is a DNS server, the BIND zone files will also be deployed here, and 
+					BIND restarted
+		notes		A free form notes field
+
+	General Notes:
+
+		The deployment manager will also deploy all active packages to this system. Once the deployment is 
+		completed, the DNS and system hosts files will be updated to	make this domain visible to other 
+		systems.
+
+Table: `domain_dns_config`
+-----
+
+	Function:
+
+		This is the DNS configuration options for a domain
+
+	Definition:
+
+		+-------------+----------------------------------------------+------+-----+---------+-------+
+		| Field       | Type                                         | Null | Key | Default | Extra |
+		+-------------+----------------------------------------------+------+-----+---------+-------+
+		| domid       | int(10) unsigned                             |      | PRI | 0       |       |
+		| entry_type  | set('A','MX','CNAME','NS','EXPIRE','SERIAL') |      | PRI | A       |       |
+		| entry_key   | varchar(64)                                  |      | PRI |         |       |
+		| notes       | text                                         | YES  |     | NULL    |       |
+		| entry_value | varchar(64)                                  |      |     |         |       |
+		+-------------+----------------------------------------------+------+-----+---------+-------+
+
+	Specific Notes:
+
+		Field		Notes
+		-----		-----
+		domid		Link to a defined domain
+		entry_type	A list of possible (currently) supported BIND DNS config entries
+		entry_key	If an 'A' record, the sub-domain name (for example 'www')
+				If a 'MX' record, the weight entry (for DNS load balancing)
+				If a 'NS' entry the value must be '-' (means nothing)
+				If a 'EXPIRE', entry the value must be '-' (means nothing)
+				If a 'SERIAL', entry the value must be '-' (means nothing)
+		entry_value	The value
+		notes		free form text notes
+
+	General Notes:
+
+		The deployment script will build the BIND zone files from these entries. The zone files will be deployed
+		to systems where `domain_deployments`.`deploy_bind_config` = '1' for this `domid`.
+
+Table: `domain_properties`
+-----
+
+	Funtion:
+	
+		All domain specific variables (key=val pairs) are set here.
+		
+	Definition:
+	
+		+-------------+------------------+------+-----+---------+-------+
+		| Field       | Type             | Null | Key | Default | Extra |
+		+-------------+------------------+------+-----+---------+-------+
+		| domid       | int(10) unsigned |      | PRI | 0       |       |
+		| key         | varchar(32)      |      | PRI |         |       |
+		| value       | varchar(255)     | YES  |     | NULL    |       |
+		| description | varchar(255)     | YES  |     | NULL    |       |
+		+-------------+------------------+------+-----+---------+-------+
+
+	Specific Notes:
+
+		Field		Notes
+		-----		-----
+		domid		Link to the domain ID
+		key		The KEY
+		value		The VALUE
+		description	Free form text field
+		
+	General Notes:
+	
+		This table could define specific properties available to a domain, for example you can define the
+		URL of the logon page (key: logon_uri val: /logon).
+		
+Table: `lookup_global_config`
+-----
+
+	Function:
+
+		General lookup table containing global variables.
+
+	Definitions:
+
+		+------------+------------------------------------------------+------+-----+---------+-------+
+		| Field      | Type                                           | Null | Key | Default | Extra |
+		+------------+------------------------------------------------+------+-----+---------+-------+
+		| key        | varchar(32)                                    |      | PRI |         |       |
+		| value      | varchar(255)                                   | YES  |     | NULL    |       |
+		| value_type | set('integer','string','csv','ip-int','other') |      |     | other   |       |
+		| comment    | varchar(255)                                   | YES  |     | NULL    |       |
+		+------------+------------------------------------------------+------+-----+---------+-------+
+
+	Specific Notes:
+
+		Field		Notes
+		-----		-----
+		key		An index name
+		value		A value
+		value_type	What type of data is stored
+		comment		A freeform text comment field
+
+	General Notes:
+
+		Some general global variable can be stored here, and one thing we are currently storing here is the DB
+		detials the deployment manager uses to build the config files for the various packages.
+
+Table: `lookup_os_names`
+-----
+
+	Funtion:
+
+		A table to lookup Operating System names and icons.
+
+	Definition:
+
+		+--------+------------------+------+-----+-------------+----------------+
+		| Field  | Type             | Null | Key | Default     | Extra          |
+		+--------+------------------+------+-----+-------------+----------------+
+		| osname | int(10) unsigned |      | PRI | NULL        | auto_increment |
+		| name   | varchar(45)      |      | UNI | Not defined |                |
+		| logo   | blob             | YES  |     | NULL        |                |
+		| notes  | text             | YES  |     | NULL        |                |
+		+--------+------------------+------+-----+-------------+----------------+
+
+	Specific Notes:
+
+		Field		Notes
+		-----		-----
+		osname		An ID
+		name		The name of the OS, for example 'Linux'
+		logo		A PNG image with the logo of the OS
+		notes		Free form text notes
+
+	General Notes:
+
+		This is just a lookup table for OS names.
+
+		TO DO:
+
+			1) Add MIME type for Images (for now, assume PNG)
+			2) Add dimensions for image (for example 64x64 pixels)
+
+Table: `package_bundles`
+-----
+
+	Function:
+
+		Logically group a number of packages in a bundle. Makes for easier deployement.
+
+	Definition:
+
+		+---------+------------------+------+-----+---------+-------+
+		| Field   | Type             | Null | Key | Default | Extra |
+		+---------+------------------+------+-----+---------+-------+
+		| pbid    | int(10) unsigned |      | PRI | 0       |       |
+		| pid     | int(10) unsigned |      | PRI | 1       |       |
+		| branch  | int(10) unsigned |      |     | 1       |       |
+		| version | int(10) unsigned |      |     | 1       |       |
+		+---------+------------------+------+-----+---------+-------+
+
+	Specific Notes:
+
+		Field		Notes
+		-----		-----
+		pbid		The package bundle id which links to table `package_bundles_definitions`
+		pid		Links to a package ID
+		branch		Defines a branch
+		version		Defines a version
+
+	General Notes:
+
+		The UNIQUE index is created on fields `pbid` and `pid` so you will not be able to define more then
+		one branch and/or version of a single package ID in a bundle.
+
+Table: `package_bundles_definitions`
+-----
+
+	Function:
+
+		A bundle definition. A bundle is a grouping of packages that will form a solution or application.
+
+	Definition:
+
+		+-------------+------------------+------+-----+---------+----------------+
+		| Field       | Type             | Null | Key | Default | Extra          |
+		+-------------+------------------+------+-----+---------+----------------+
+		| pbid        | int(10) unsigned |      | PRI | NULL    | auto_increment |
+		| name        | varchar(16)      |      |     |         |                |
+		| description | varchar(255)     | YES  |     | NULL    |                |
+		| notes       | text             | YES  |     | NULL    |                |
+		+-------------+------------------+------+-----+---------+----------------+
+
+	Specific Notes:
+
+		Field		Notes
+		-----		-----
+		pbid		The package bundle ID
+		name		A human friendly name
+		description	A short bundle description
+		notes		Free form text notes
+
+	General Notes:
+
+		A single mod_perl enabled CMS might consists of several packages, deployed as LAMP, xinetd
+		and/or Stand-alone applications. This is where we bundle them all together.
+
+Table: `package_checkout`
+-----
+
+	Function:
+
+		This is a table to track checked out packages.
+
+	Definition:
+
+		+--------------+------------------+------+-----+---------------------+-------+
+		| Field        | Type             | Null | Key | Default             | Extra |
+		+--------------+------------------+------+-----+---------------------+-------+
+		| pid          | int(11) unsigned |      | MUL | 1                   |       |
+		| version      | int(11) unsigned |      |     | 1                   |       |
+		| branch       | int(11) unsigned |      |     | 1                   |       |
+		| co_timestamp | datetime         |      |     | 0000-00-00 00:00:00 |       |
+		| uid          | int(11) unsigned |      |     | 1                   |       |
+		| eta          | datetime         | YES  |     | NULL                |       |
+		+--------------+------------------+------+-----+---------------------+-------+
+
+	Specific Notes:
+
+		Field		Notes
+		-----		-----
+		pid		The package ID
+		version		The currently checked out version
+		branch		Branch on which we are working
+		co_timestamp	The timestampe of the check out
+		uid		The person who checked out this src
+		eta		The estiomated expected date for the next commit. the UID will be reminded of outstanding
+				commits from time to time
+
+	General Notes:
+
+		In LAMPAS, only ONE package version per branch can be checked out at a time. So, only one person (in theory)
+		should be working on a piece of code - either fixing a bug, adding features or whatever.
+
+Table: `package_definition`
+-----
+
+	Function:
+
+		A table containing the high level definition of a new package (or src file).
+
+	Definition:
+
+		+-------------+---------------------+------+-----+---------------------+----------------+
+		| Field       | Type                | Null | Key | Default             | Extra          |
+		+-------------+---------------------+------+-----+---------------------+----------------+
+		| pid         | int(10) unsigned    |      | MUL | NULL                | auto_increment |
+		| name        | varchar(32)         |      | MUL |                     |                |
+		| description | varchar(255)        | YES  |     | NULL                |                |
+		| createdate  | datetime            |      |     | 0000-00-00 00:00:00 |                |
+		| status      | tinyint(4) unsigned | YES  |     | 0                   |                |
+		+-------------+---------------------+------+-----+---------------------+----------------+
+
+	Specific Notes:
+
+		Field		Notes
+		-----		-----
+		pid		A link to the package ID
+		name		A normal name
+		description	A short free form description
+		createdate	A date and time stampe when this package was created
+		status		1=active, 0=disabled. No maintenance can be performed on disabled packages. Also
+				any deployed packages will be removed once marked as disabled.
+
+	General Notes:
+
+		None
+
+Table: `package_log`
+-----
+
+	Function:
+
+		Any changes to a package needs to be logged to track the changes. This is where it happens.
+
+	Definitions:
+
+		+-----------------+-------------------------------------------------------------------------+------+-----+---------+-------+
+		| Field           | Type                                                                    | Null | Key | Default | Extra |
+		+-----------------+-------------------------------------------------------------------------+------+-----+---------+-------+
+		| pid             | int(11) unsigned                                                        |      | MUL | 0       |       |
+		| entry_timestamp | datetime                                                                | YES  |     | NULL    |       |
+		| event_type      | set('Package Create','Commit','Check Out','View','Properties Modify',   |      |     |         |       |
+		|                 |     'Status Change','Delete','Src Downloaded','User Entry',             |      |     |         |       |
+		|                 |     'Version Control','Permissions Update','Definition Update','Other') |      |     | Other   |       |
+		| message         | varchar(255)                                                            | YES  |     | NULL    |       |
+		| notes           | text                                                                    | YES  |     | NULL    |       |
+		+-----------------+-------------------------------------------------------------------------+------+-----+---------+-------+
+
+	Specific Notes:
+
+		Field		Notes
+		-----		-----
+		pid		The package ID
+		entry_timestamp	When the entry took place
+		event_type	A short keyword defining the type of log event (helps with reporting and searching)
+		message		A system (or user) generated message
+		notes		A free form text field
+
+	General Notes:
+
+		Any action performed on a package is logged in this table, with the reasons (message) and other relevant info.
+		It is also possible for user to add their own log entries (event_type = 'User Entry'). In addition, users can
+		leave comments in the `notes` field of any particular event. This can form the bases of some sort of knowledge
+		base in time to come.
+
+Table: `package_permisssions`
+-----
+
+	Function:
+
+		A table defining the access and usage permissions for packages.
+
+	Definitions:
+
+		+-----------+---------------------------+------+-----+---------------------+-------+
+		| Field     | Type                      | Null | Key | Default             | Extra |
+		+-----------+---------------------------+------+-----+---------------------+-------+
+		| pid       | int(11) unsigned          |      | MUL | 0                   |       |
+		| idtype    | set('User','Group','All') |      |     |                     |       |
+		| id        | int(11) unsigned          |      |     | 1                   |       |
+		| flags     | varchar(32)               |      |     |                     |       |
+		| log_entry | varchar(255)              |      |     | Permissions Updated |       |
+		| notes     | text                      | YES  |     | NULL                |       |
+		+-----------+---------------------------+------+-----+---------------------+-------+
+
+	Specific Notes:
+
+		Field		Notes
+		-----		-----
+		pid		A link to the package ID
+		idtype		Defines the scope of this permission definition
+		id		Either a uid, gid or '0' (for All).
+		flags		A group of 32 1/0 flags:
+				Pos 00	- Update of Package Source
+				Pos 01	- Read package Src
+				Pos 02	- Update package doc
+				Pos 03	- Read package doc
+				Pos 04	- Deploy package
+				Pos 05	- Execute package (LAMPAS Client)
+				pos 06 to Pos 31	- EMPTY (reserved)
+
+	General Notes:
+
+		The permissions table defines which users and/or groups may perform which functions on a specific
+		package. The `pid`, `idtype` and `id` fields together form a unique index type. Since any package
+		may have more then one permission entry, the LAMPAS server will process permissions in the following
+		order:
+
+			1) ID the action that is going to be required and map that to a FLAG position.
+			2) First see if the 'All' group have explicit permissions to do the action.
+			3) If not, see if a group to which the user belongs have permissions to to the action
+			4) And if that is also not the case, finally see if the user has explicit rights to do the 
+			   action
+
+		By default, if no permission entry is found, permission is denied.
+
+Table: `package_properties`
+-----
+
+	Function:
+
+		The `package_properties` table defines general properties relevant for this package.
+
+	Definitions:
+
+		+---------------------+--------------------------------------------------------------------+------+-----+-----------+-------+
+		| Field               | Type                                                               | Null | Key | Default   | Extra |
+		+---------------------+--------------------------------------------------------------------+------+-----+-----------+-------+
+		| pid                 | int(11) unsigned                                                   |      | PRI | 0         |       |
+		| tos                 | set('xinetd','LAMP','Stand-alone')                                 |      |     | LAMP      |       |
+		| src_type            | set('Script','Binary')                                             |      |     | Script    |       |
+		| MIME_type           | varchar(32)                                                        |      |     | text/html |       |
+		| max_memory          | int(11) unsigned                                                   |      |     | 8192      |       |
+		| max_input_buffer    | int(11) unsigned                                                   |      |     | 1024      |       |
+		| run_time_out        | int(11) unsigned                                                   |      |     | 60        |       |
+		| schedule            | varchar(255)                                                       | YES  |     | NULL      |       |
+		| env                 | varchar(255)                                                       | YES  |     | NULL      |       |
+		| deploydir           | varchar(255)                                                       | YES  |     | NULL      |       |
+		| log_type            | set('syslog','file','none')                                        |      |     | syslog    |       |
+		| log_dest            | varchar(255)                                                       | YES  |     | NULL      |       |
+		| schedule_dependency | int(11) unsigned                                                   |      |     | 0         |       |
+		| run_as_user         | varchar(32)                                                        | YES  |     | NULL      |       |
+		| apache_handler      | set('Default','ChildInit','PostReadRequest','Init','Trans',        |      |     |           |       |
+                |                     |     'HeaderParser','Access','Authen','Authz','Type','Fixup',       |      |     |           |       |
+                |                     |     'Log','Cleanup','ChildExit')                                   | YES  |     | NULL      |       |
+		| dependencies        | text                                                               | YES  |     | NULL      |       |
+		| tos_template        | int(10) unsigned                                                   | YES  |     | NULL      |       |
+		+---------------------+--------------------------------------------------------------------+------+-----+-----------+-------+
+
+	Specific Notes:
+
+		Field		Notes
+		-----		-----
+		pid		A link to the package ID
+		tos		Type of service. Can be either:
+					xinetd		- A TCP/UDP based application controled by xinetd
+					LAMP		- A mod_perl application
+					Stand-alone	- A script NOT listening on a network port. Cronjobs 
+							  could be defined as such.
+		src_type	What type of Source is this. Generally Binary packages can NOT be checked out :)
+		MIME_type	Used by `tos` = 'LAMP' application to define the default MIME type to return to the browser
+		max_memory	Planned for future use. Measured in kilo-bytes.
+		max_input_buffer	Planned for future use. Measured in kilo-bytes.
+		run_time_out	The max time the script will run until terminated (0=unlimited) . Measured in seconds.
+		schedule	If `tos` = 'Stand-alone', you can schedule it in a cron. The cron definition is entered here.
+		env		Additional %ENV to pass (example: 'key1=val1;key2=val2;key3;key4' -> if key3/4 exists, they will be passed)
+		deploydir	For Stand-alone scripts, where the package must be deployed
+		log_type	Configuration setting for use internally by the package. Use it as you want to.
+		log_dest	As above
+		schedule_dependency	If set, the value must be that of another `pid` on which this job depends. The scheduler will then
+				first execute the upper most parent, and then the subsequent dependencies. With this value set, you do not
+				have to set `schedule`.
+		run_as_user	Setting for xinetd config.
+		apache_handler	LAMP specific setting, defining for which handler we are installing this mod_perl module for
+		deependencies	XML text field defining the dependencies for this package - still needs development.
+		tos_template	If required, link to a template to execute. (Required for LAMP `tos`)
+
+	General Notes:
+
+		To Do:
+
+			1) More xinetd specific properties - I am thinking of XML as well.
+			2) I need to figure a nice way to pass more parameters to scripts and binaries
+
+		Once the script executes, the field values will be set as additional %ENV key/value pairs. Binary applications will
+		be called with the system() call inside an eval.
+
+Table: `package_src`
+-----
+
+	Function:
+
+		The actual package source code.
+
+	Definition:
+
+		+----------------+------------------+------+-----+---------------------+-------+
+		| Field          | Type             | Null | Key | Default             | Extra |
+		+----------------+------------------+------+-----+---------------------+-------+
+		| pid            | int(11) unsigned |      | PRI | 0                   |       |
+		| version        | int(11) unsigned |      | PRI | 0                   |       |
+		| branch         | int(11) unsigned |      | PRI | 1                   |       |
+		| entrytimestamp | datetime         |      |     | 0000-00-00 00:00:00 |       |
+		| uploadedby     | int(11) unsigned |      |     | 0                   |       |
+		| releasenotes   | text             | YES  |     | NULL                |       |
+		| documentation  | text             | YES  |     | NULL                |       |
+		| src            | blob             |      |     |                     |       |
+		| changelog      | text             | YES  |     | NULL                |       |
+		+----------------+------------------+------+-----+---------------------+-------+
+
+	Specific Notes:
+
+		Field		Notes
+		-----		-----
+		pid		Link to a package ID
+		version		The version number
+		branch		The branch number
+		entrytimestamp	When the specific package branc & version was commited/uploaded
+		uploadedby	The `uid` of the person that did the actual upload
+		releasenotes	Free form text
+		src		The actual source. Could be binary (therefor a BLOB)
+		changelog	Free form text
+
+	General Notes:
+
+		This is the source.
+
+Table: `package_tos_templates`
+-----
+
+	Function:
+
+		Defines the template inside which a package will be executed. 
+
+	Definition:
+
+		+------------------------+----------------------------------------------------------+------+-----+---------+----------------+
+		| Field                  | Type                                                     | Null | Key | Default | Extra          |
+		+------------------------+----------------------------------------------------------+------+-----+---------+----------------+
+		| tid                    | int(10) unsigned                                         |      | PRI | NULL    | auto_increment |
+		| tos                    | set('xinetd','LAMP','Stand-alone')                       |      |     | LAMP    |                |
+		| default_apache_handler | set('Default','ChildInit','PostReadRequest','Init',      |      |     |         |                |
+		|                        |     'Trans','HeaderParser','Access','Authen','Authz',    |      |     |         |                |
+		|                        |     'Type','Fixup','Log','Cleanup','ChildExit')          |      |     | Default |                |
+		| name                   | varchar(32)                                              |      |     |         |                |
+		| description            | varchar(255)                                             | YES  |     | NULL    |                |
+		| notes                  | text                                                     | YES  |     | NULL    |                |
+		| src                    | text                                                     | YES  |     | NULL    |                |
+		+------------------------+----------------------------------------------------------+------+-----+---------+----------------+
+
+	Specific Notes:
+
+		Field		Notes
+		-----		-----
+		tid		The tempate ID
+		tos		For which `tos` is this template
+		default_apache_handler	The default Apache handler. This could be over ridden in the package properties.
+		name		A human friendly name
+		description	A short description
+		notes		Free form text notes
+		src		the actual text. NOTE: Only scripts can have templates - useless for binaries.
+
+	General Notes:
+
+		Let's assume we have a handler defined in Apache called LAMPAS::Sample for domain www.lampas.tld, path '/'.
+
+		The deployment script will deploy the actual TEMPLATE (this definition), and the package code will run either in an eval
+		or in a system() call.
+
+Table: `session_log`
+-----
+
+	Function:
+	
+		Logging of session activity
+		
+	Definition:
+	
+		+------------+---------------------+------+-----+---------------------+-------+
+		| Field      | Type                | Null | Key | Default             | Extra |
+		+------------+---------------------+------+-----+---------------------+-------+
+		| session_id | int(10) unsigned    |      |     | 0                   |       |
+		| uid        | int(10) unsigned    |      |     | 0                   |       |
+		| domid      | int(10) unsigned    |      |     | 1                   |       |
+		| timestamp  | datetime            |      |     | 0000-00-00 00:00:00 |       |
+		| referer    | varchar(255)        | YES  |     | NULL                |       |
+		| target     | varchar(255)        |      |     |                     |       |
+		| cookies    | text                | YES  |     | NULL                |       |
+		| authstatus | tinyint(3) unsigned |      |     | 0                   |       |
+		| log_msg    | varchar(255)        | YES  |     | NULL                |       |
+		+------------+---------------------+------+-----+---------------------+-------+
+
+	Specific Notes:
+
+		Field		Notes
+		-----		-----
+		session_id	A web session ID, unique per user
+		uid		The user linked to this session ID
+		domid		The domain ID
+		timestamp	Timestamp of the log entry
+		referer		The Referer page, if known
+		target		The resource requested NOW
+		cookies		All the cookies from the browser - un-encrypted
+		authstatus	Is the user authenticated and authorised for this resource? 1=yes 0=no
+		log_msg		The message entry
+		
+	General Notes:
+	
+		Each time a user visits a resource, a log entry will be created. This specific table is for logging
+		authenticated user actions against a specific domain. This should help with reporting.
+		
+Table: `session_tracker`
+-----
+
+	Function:
+	
+		Live session management table.
+		
+	Definition:
+	
+		+------------+------------------+------+-----+---------------------+----------------+
+		| Field      | Type             | Null | Key | Default             | Extra          |
+		+------------+------------------+------+-----+---------------------+----------------+
+		| session_id | int(10) unsigned |      | PRI | NULL                | auto_increment |
+		| uid        | int(10) unsigned |      | MUL | 0                   |                |
+		| domid      | int(10) unsigned |      |     | 1                   |                |
+		| referer    | varchar(255)     | YES  |     | NULL                |                |
+		| target     | varchar(255)     |      |     |                     |                |
+		| timestamp  | datetime         |      |     | 0000-00-00 00:00:00 |                |
+		| tags       | text             | YES  |     | NULL                |                |
+		+------------+------------------+------+-----+---------------------+----------------+
+
+	Specific Notes:
+
+		Field		Notes
+		-----		-----
+		session_id	A unique session ID linked to an UID (user ID)
+		uid		The UID
+		domid		The Domain ID (multiple domains can be tracked in-dependantly)
+		referer		The HTTP Referer, if known
+		target		The landing page (page updating this entry)
+		timestamp	The timestamp
+		tags		Some handlers may whish to set some variables. They can do it this TEXT field.
+		
+	General Notes:
+	
+		Each time a resource is visited, the session timestamp must be updated. Eventually a cron job will remove
+		all old sessions from the table - effectively logging out a user.
+
+
+Table: `system_definitions`
+-----
+
+	Function:
+
+		Define seperate systems.
+
+	Definition:
+
+		+-------------------------+------------------+------+-----+------------+----------------+
+		| Field                   | Type             | Null | Key | Default    | Extra          |
+		+-------------------------+------------------+------+-----+------------+----------------+
+		| sid                     | int(10) unsigned |      | PRI | NULL       | auto_increment |
+		| osname                  | int(10) unsigned |      |     | 1          |                |
+		| version                 | varchar(16)      |      |     | Unknown    |                |
+		| end_of_life_date        | date             |      |     | 2020-01-01 |                |
+		| os_package_script       | int(10) unsigned | YES  |     | NULL       |                |
+		| os_package_branch       | int(10) unsigned | YES  |     | NULL       |                |
+		| os_package_version      | int(10) unsigned | YES  |     | NULL       |                |
+		| host_file_location      | varchar(255)     |      |     | /etc/hosts |                |
+		| authkey                 | varchar(32)      | YES  |     | NULL       |                |
+		| admin_group             | int(10) unsigned |      |     | 1          |                |
+		| host_name               | varchar(32)      |      |     | lampas     |                |
+		| host_ip_addr            | int(10) unsigned | YES  |     | NULL       |                |
+		| host_ip_netmask         | int(10) unsigned | YES  |     | NULL       |                |
+		| host_ip_default_gateway | int(10) unsigned | YES  |     | NULL       |                |
+		| system_notes            | text             | YES  |     | NULL       |                |
+		+-------------------------+------------------+------+-----+------------+----------------+
+
+	Specific Notes:
+
+		Field		Notes
+		-----		-----
+		sid		The system ID
+		osname		Link to the OS name (table `lookup_os_names`)
+		version		Free form OS version description
+		end_of_life_date	Date when support for this OS expires (useful for alerting)
+		os_package_script	A `pid` of the package script that is responsible for managing
+					the OS packages. (Could be a RPM wrapper for LAMPAS?)
+		os_package_branch	Link to the branch
+		os_package_version	Link to the current version
+		host_file_location	Path to the hosts file (example: /etc/hosts on *nix systems)
+		authkey		used for encryption by the package deployment script
+		admin_group	Link too a `gid`
+		host_name	The HOSTNAME
+		host_ip_addr	The IP address of this system (also used for setting up DNS and load balancing)
+		host_ip_netmask	The NETMASK setting
+		host_ip_default_gateway	The Default Gateway
+		system_notes	Free form text
+
+	General Notes:
+
+		Each computer system (either physical or virtual) have certain unique properties. Here is
+		where we define each of these unique systems.
+
+		Note: Currently a system with more then one IP address is NOT catered for. We are rigged for
+		      name based virtual hosts.
+
+Table: `system_log`
+-----
+
+	Function:
+
+		Here is where we log system specific events.
+
+	Definitinion:
+
+		+-----------------+-------------------------------------------+------+-----+---------------------+-------+
+		| Field           | Type                                      | Null | Key | Default             | Extra |
+		+-----------------+-------------------------------------------+------+-----+---------------------+-------+
+		| sid             | int(10) unsigned                          |      |     | 0                   |       |
+		| entry_timestamp | datetime                                  |      |     | 0000-00-00 00:00:00 |       |
+		| event_type      | set('profile','deployment','monitoring',  |      |     |                     |       |
+		|                 |     'warnings','errors','other')          |      |     | other               |       |
+		| entry           | varchar(255)                              | YES  |     | NULL                |       |
+		+-----------------+-------------------------------------------+------+-----+---------------------+-------+
+
+	Specific Notes:
+
+		Field		Notes
+		-----		-----
+		sid		A link to the system ID
+		entry_timestamp	A timestamp for the event entry
+		event_type	What type of event is this. Helps with reporting and monitoring.
+		entry		The log entry
+
+	General Notes:
+
+		Nothing spectacular here - just the log data.
+
+Table: `user_definitions`
+-----
+
+	Function:
+
+		This is the basic user definition table.
+
+	Definition:
+
+		+-------------------------+---------------------+------+-----+---------+----------------+
+		| Field                   | Type                | Null | Key | Default | Extra          |
+		+-------------------------+---------------------+------+-----+---------+----------------+
+		| uid                     | int(10) unsigned    |      | PRI | NULL    | auto_increment |
+		| logon_name              | varchar(16)         |      | UNI |         |                |
+		| password                | varchar(32)         | YES  |     | NULL    |                |
+		| status                  | tinyint(3) unsigned |      |     | 0       |                |
+		| status_date             | datetime            | YES  |     | NULL    |                |
+		| last_logon_date         | date                | YES  |     | NULL    |                |
+		| last_activity_timestamp | datetime            | YES  |     | NULL    |                |
+		| flags                   | varchar(32)         | YES  |     | NULL    |                |
+		+-------------------------+---------------------+------+-----+---------+----------------+
+
+	Specific Notes:
+
+		Field		Notes
+		-----		-----
+		uid		A user ID
+		logon_name	The screen name a user uses to log on
+		password	A MD5 value for the users password
+		status		The users status: 1=active 0=disabled
+		status_date	The date and time of the last status change
+		last_log_date	The date of the last logon
+		last_activity_timestamp	Every time the user does something, this field is updated.
+		flags		Not used yet. 
+
+	General Notes:
+
+		At the initial LAMPAS install, there is only one user: 'admin' with password 'password'.
+
+Table: `user_group_definitions`
+-----
+
+	Function:
+
+		Here we define groups to which one or more users can belong to.
+
+	Definition:
+
+		+------------------+---------------------+------+-----+---------------------+----------------+
+		| Field            | Type                | Null | Key | Default             | Extra          |
+		+------------------+---------------------+------+-----+---------------------+----------------+
+		| gid              | int(10) unsigned    |      | PRI | NULL                | auto_increment |
+		| name             | varchar(32)         |      | UNI |                     |                |
+		| description      | varchar(255)        | YES  |     | NULL                |                |
+		| status           | tinyint(3) unsigned |      |     | 0                   |                |
+		| status_timestamp | datetime            |      |     | 0000-00-00 00:00:00 |                |
+		| log              | text                | YES  |     | NULL                |                |
+		| flags            | varchar(32)         | YES  |     | NULL                |                |
+		+------------------+---------------------+------+-----+---------------------+----------------+
+
+	Specific Notes:
+
+		Field		Notes
+		-----		-----
+		gid		The group ID
+		name		A human friendly grouup name
+		description	Free form text
+		status		Either 1=active or 0=disabled
+		status_timestamp	The date and time the status was set
+		log		Activity log (must I stil use this here?)
+		flags		Not used yet
+
+	General Notes:
+
+		Regarding the status. If a group is disabled, all users belonging ONLY to one group (this group)
+		will also be disabled.
+
+		Permissions linked to this group will also be ignored if the status is set to '0'.
+
+Table: `user_groups`
+-----
+
+	Function:
+
+		A linking table linking users to groups.
+
+	Definition:
+
+		+--------+---------------------+------+-----+---------+-------+
+		| Field  | Type                | Null | Key | Default | Extra |
+		+--------+---------------------+------+-----+---------+-------+
+		| uid    | int(10) unsigned    |      | PRI | 0       |       |
+		| gid    | int(10) unsigned    |      | PRI | 0       |       |
+		| status | tinyint(3) unsigned |      |     | 0       |       |
+		| log    | text                | YES  |     | NULL    |       |
+		+--------+---------------------+------+-----+---------+-------+
+
+	Specific Notes:
+
+		Field		Notes
+		-----		-----
+		uid		Link to a UID
+		gid		Link to a GID
+		status		Either 1=active or 0=disabled
+		log		Log entries (mainly for status change events)
+
+	General Notes:
+
+		In this instance the status is only to temporarely disable a user linked to a
+		specific group. This way you do not have to DELETE a entry from the table.
+
+Table: `user_log`
+-----
+
+	Function:
+
+		A logging table for user events.
+
+	Definition:
+
+		+---------------+-------------------------------------------+------+-----+---------------------+-------+
+		| Field         | Type                                      | Null | Key | Default             | Extra |
+		+---------------+-------------------------------------------+------+-----+---------------------+-------+
+		| uid           | int(10) unsigned                          |      |     | 0                   |       |
+		| log_timestamp | datetime                                  |      |     | 0000-00-00 00:00:00 |       |
+		| event_type    | set('logon','logout','action','profile',  |      |     |                     |       |
+		|               |     'system','warnings','errors')         |      |     |                     |       |
+		| entry         | varchar(255)                              | YES  |     | NULL                |       |
+		| notes         | text                                      | YES  |     | NULL                |       |
+		+---------------+-------------------------------------------+------+-----+---------------------+-------+
+
+	Specific Notes:
+
+		Field		Notes
+		-----		-----
+		uid		Link to a UID
+		log_timestamp	A timestamp of the event
+		event_type	Explains the event type. Used in reporting and monitoring.
+		entry		A short log entry
+		notes		Free form text. Can later be used as part of a knowledge base.
+
+	General Notes:
+
+		None.
+		

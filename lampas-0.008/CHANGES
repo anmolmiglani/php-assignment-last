@@ -1,0 +1,2 @@
+* Fixed vhost config to correctly handle index pages on static directory area
+* Fixed a MySQL install bug. Table `domain_dns_config` is now MyISAM like the rest.

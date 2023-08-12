@@ -1,0 +1,56 @@
+README
+======
+
+I have done a lot of experimenting the last couple of months and I know
+I am guilty of not releasing early and often. The problem was that many
+of the concepts and code changed on a major way, and I first wanted to
+get to a state where things are pretty much figured out (in theory)
+before building the 0.005 release.
+
+Well, it is done. I have not yet managed to complete a "compiler" per
+say, but the current code base should be enough tooo give you an idea
+of where this project is heading.
+
+In a nutshell then:
+
+	* The LAMPAS system consists of:
+
+		- An Apache vhost config file
+		- A "package" (mod_perl module) that is run based on
+		  the config from the vhost
+
+	* Some database entries were created to facilitate for now the
+	  basic program flow of the LAMPAS system.
+
+What happens is that through the mod_perl configuration, the LAMPAS 
+modules are pre-loaded (advantage of mod_perl), but some of the source
+code exists in the database. When the vhost redirect a request to our
+mod_perl handler, the code is loaded from thhhe database and executed.
+
+This means that your source code version control and entire software
+development life cycle (SDLC) now lives in a DB. In future, the LAMPAS
+system will also facilitate:
+
+	* Your DNS configuration (using BIND zone files)
+	* Deploy your domains
+	* Manage TCP and DNS load balancing
+	* Advanced permission management
+	* System monitoring
+
+This is just the beginning. Since I now have a base from where to start
+the next steps are to start to build the web management front end.
+
+Look out for more developments soon. Since the base code is now done, I
+am confident that future releases will be more frequent.
+
+If you are interested in some of the details regarding the DB set-up, 
+please read the following doc:
+
+	docs/database_notes
+
+I am busy with the process flow document. The beginnings is available
+in the file:
+
+	docs/LAMP_Process_Flow
+
+../end

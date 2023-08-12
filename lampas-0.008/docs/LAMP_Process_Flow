@@ -1,0 +1,45 @@
+Here is some notes regarding process flow within a LAMP (mod_perl) default handler (and possibly other handlers).
+
+High Level:
+----------
+
+	Step 1 - Load config
+	Step 2 - Authentication and Authorisation
+	Step 3 - Handle request
+	Step 4 - Clean-up
+	Step 5 - Present/return result
+
+Step 1 - Detailed
+-----------------
+
+The first config to load is the DB config. This should be parameters passed to the script ENV from the Apache config.
+
+The loaddbconf() function will handle this part.
+
+From here, the rest of the config is loaded into a hash: %lconfig which will contain all the script properties.
+
+NOTE: When the pid for the application and path is NOT known (in other words, not passed as a parmater) use the default code for the path
+
+Step 2 - Authentication and Authorisation
+-----------------------------------------
+
+Flags in table `package_permisssions`:
+
+	Field type: varchar(32) where each position, starting from LEFT, has the following meaning:
+
+	Pos 00	- Update of Package Source
+	Pos 01	- Read package Src
+	Pos 02	- Update package doc
+	Pos 03	- Read package doc
+	Pos 04	- Deploy package
+	Pos 05	- Execute package (LAMPAS Client)
+	pos 06 to Pos 31	- EMPTY (reserved)
+
+	The default for a public domain resource would be: "00000100000000000000000000000000"
+
+Each time a package is created, the maintaining group id (from the user logged in) will get the following permissions:
+
+	"11110100000000000000000000000000"
+
+And the LAMPAS super user will then grant deployment rights to various users or groups.
+
